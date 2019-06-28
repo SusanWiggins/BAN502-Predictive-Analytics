@@ -1,0 +1,198 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Simple Linear Regression and Correlation Assignment
+
+##BA502 Predictive Analytics
+
+###Susan Wiggins
+
+Library files needed for assignment, tidyverse,GGally.
+
+```{r}
+library(tidyverse)
+library(GGally)
+
+
+```
+
+Reading in the airquality data set.
+
+
+```{r}
+
+air = airquality
+str(air)
+
+```
+
+a.Describe the dataset.
+The dataset consists of variable data for Ozone, Solar.R, Wind, Temperature, Month, and Day.The dataset consists of 153 observations and 6 variables. The data is numeric for all variables. The measurement of data is from the range of May 1, 1973 to September 30, 1973.The data was obtained from the New York State Department of Conservation and the National Weather Service. 
+
+
+Ozone: Mean ozone in parts per billion from 1300 to 1500 hours at Roosevelt Island 
+
+Solar.R: Solar radiation in Langleys in the frequency band 4000-7700 Angstroms from 0800 to 1200 hours at Central Park 
+
+Wind: Average wind speed in miles per hour at 0700 and 1000 hours at LaGuardia Airport 
+
+Temp: Maximum daily temperature in degrees Fahrenheit at La Guardia Airport. 
+
+
+WorkCited:http://rpubs.com/Nitika/linearRegression_Airquality
+
+b.How many variables and observations are there?
+
+The dataset consists of 153 observations and 6 variables. 
+
+c.Is there any missing data?
+
+Yes, missing data is indicated by NA's for Ozone and Solar.R
+
+d.Which variable is likely to be the response (Y) variable?
+
+Solar.R is likely to be the response (Y) variable. 
+
+The methods for dealing with missing data:
+
+1. Delete the rows with missing data
+2. Delete the columns with missing data.
+3. Impute(i.e.,estimate or guess) values to replace the missing values.
+
+```{r}
+
+air2 = air %>% filter(!is.na(Ozone)) %>% filter(!is.na(Solar.R)) 
+
+
+```
+
+How many rows and columns remain in this new (air2) data frame?
+
+The air2 data frame consists of 111 observations and 6 variables. 
+
+```{r}
+
+ggcorr(air2, label = TRUE)
+
+corr = round(cor(air2),2)
+corr
+
+
+```
+
+a. Which variable is most strongly correlated with the Ozone variable? 
+
+The variable which is most strongly correlated to "Ozone" is Temperature.
+
+b. Which variable is least strongly correlated with the Ozone variable? 
+
+The variable least strongly correlated with "Ozone" is Day. 
+
+```{r}
+
+ggplot(air2, aes(x=Temp, y=Ozone)) + 
+  geom_point()
+
+
+```
+
+ Describe the relationship between Temp and Ozone. 
+ 
+ As Temperture increase at Fahrenheit(80) there is a gradual increase in Ozone between 50 and 100 parts per billion. Between the Fahrenheit temperature of 60 to 80 there is no increase due to Ozone the data remains on a continuous flow around 25 to 30 parts per billion. 
+ 
+ 
+```{r}
+
+model1 = lm(Ozone ~ Temp, air2)
+summary(model1)
+
+confint(model1)
+
+
+```
+
+a. Discuss the quality of this model (mention the R square value and significance of the predictor variable).
+
+R-squared value is OK at .488, the value is descently close to 1. The p-value is good less than .05 significantly.
+
+
+b. Use the code confïnt(model1) to generate 95% conïfidence intervals for the coeffïcients. In what range does the slope coeffïcient likely fall? 
+
+The slope coefficient which is the intercept falls between the lower of -184.818372 and upper of -110.473773.
+
+```{r}
+
+ggplot(air2, aes(x=Temp, y=Ozone)) + 
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+```
+
+
+Develop a Prediction for Ozone when Temp is 80.
+The prediction for ozone when temperature is 80 is 47.48272.
+
+
+```{r}
+
+
+
+predict(model1, data.frame("Temp" = 80))
+
+confint(model1)
+
+
+```
+
+Describe the relationship between Day and Ozone.
+
+Based on the scatter plot there does not seem to be any linear relationship 
+between Day and Ozone. The data consists in a varied dispersion of data throughout the graphical parameters. 
+
+```{r}
+
+
+ggplot(air2, aes(x=Day, y=Ozone)) + 
+  geom_point() 
+
+```
+
+
+```{r}
+
+model2 = lm(Ozone ~ Day, air2)
+summary(model2)
+
+confint(model2)
+
+
+
+```
+
+
+a. Discuss the quality of this model (mention the R square value and significance of the predictor variable).
+
+The p value indicates very low significance due to a value of .957, a p value needs to be less than .05. The R-Squared value is at .00002693 also very low which does not show relevance of a good regression analysis.
+
+
+b. Use the code confïnt(model1) to generate 95% conïfidence intervals for the coeffïcients. In what range does the slope coeffïcient likely fall? 
+
+The slope coefficient falls between 29.248109 lower limit and the upper limit for slope is 55.5826192.
+
+
+
+
+```{r}
+
+
+ggplot(air2, aes(x=Day, y=Ozone)) + 
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+```
+
+

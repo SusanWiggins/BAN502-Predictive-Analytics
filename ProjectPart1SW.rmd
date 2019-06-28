@@ -1,0 +1,531 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Project 1-Data Exploration, Preparation, and Visualization
+
+##BAN502 Predictive Analytics
+
+###Susan Wiggins
+
+Libraries needed for Project 1 Data Exploration:
+
+```{r}
+
+options(tidyverse.quiet = TRUE)
+library(tidyverse)
+library(mice) #package for imputation
+library(VIM) #visualizing missingness
+library(leaps) #best subset selection
+library(MASS) #access to forward and backward selection algorithms
+library(weathermetrics)
+library(caret) #for splitting functions
+
+```
+
+Reading in the data set:
+
+```{r}
+
+library(readr)
+rain <- read_csv("rain.csv")
+View(rain)
+
+
+```
+
+###Structure and summary and Visualizations for understanding of variables in the data set:
+
+
+
+
+```{r}
+
+
+str(rain)
+summary(rain)
+
+```
+
+```{r}
+
+
+
+```
+
+
+
+Converting variables to factors:
+
+```{r}
+
+rain = rain %>% mutate(RainTomorrow = as_factor(as.character(RainTomorrow)))%>% 
+mutate(RainTomorrow = fct_recode(RainTomorrow, "Yes" = "1", "No" = "0"))
+
+glimpse(rain)
+
+
+rain = rain %>% mutate(Cloud9am = as_factor(as.character(Cloud9am)))%>% 
+mutate(Cloud9am = fct_recode(Cloud9am, "clear sky" = "0", "few clouds" = "1",  "2", "scattered clouds" = "3", "4","broken" = "5", "6","7", "completely overcast" = "8"))
+
+
+glimpse(rain)
+
+
+rain = rain %>% mutate(Cloud3pm = as_factor(as.character(Cloud3pm)))%>% 
+mutate(Cloud3pm = fct_recode(Cloud3pm, "clear sky" = "0", "few clouds" = "1",  "2", "scattered clouds" = "3", "4","broken" = "5", "6","7", "completely overcast" = "8"))
+
+
+glimpse(rain)
+
+
+rain = rain %>% mutate(RainToday = as_factor(as.character(RainToday)))%>% 
+mutate(RainToday = fct_recode(RainToday, "Yes" = "1", "No" = "0"))
+
+glimpse(rain)
+
+
+
+```
+
+Converting Celsius to Farhenheit since United States looks at this scale for 
+Temperature readings:
+
+```{r}
+
+
+
+data(rain)
+rain$MinTempF <- convert_temperature(rain$MinTemp,
+   old_metric = "celsius", new_metric = "fahrenheit")
+
+rain$MaxTempF <- convert_temperature(rain$MaxTemp,
+   old_metric = "celsius", new_metric = "fahrenheit")
+
+rain$Temp9amF <- convert_temperature(rain$Temp9am,
+   old_metric = "celsius", new_metric = "fahrenheit")
+
+rain$Temp3pmF <- convert_temperature(rain$Temp3pm,
+   old_metric = "celsius", new_metric = "fahrenheit")
+
+
+rain$Rainfall_inches <- convert_precip(rain$Rainfall,
+  old_metric = "mm", new_metric = "inches", round = NULL)
+
+str(rain)
+summary(rain)
+
+
+
+
+```
+
+Difference in the MaxTemperture and the Minimum Temperature in the data set along with a conversion on the temperature scale:
+
+```{r}
+
+rain <- mutate(rain, Temperture_Change = MaxTemp - MinTemp)
+
+
+rain$Temperture_ChangeF <- convert_temperature(rain$Temperture_Change,
+   old_metric = "celsius", new_metric = "fahrenheit")
+
+
+rain$Cloud3pm[rain$Cloud3pm==""] = NA #convert blanks in cabin to NA
+rain$Cloud9am[rain$Cloud9am==""] = NA #convert blanks in cabin to NA
+
+str(rain)
+summary(rain)
+
+
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+Visualization of Variables in Rain dataset:
+
+```{r}
+
+ggplot(rain, aes(x= Date, fill = RainTomorrow)) + geom_bar() + theme_bw()
+
+
+
+```
+
+
+```{r}
+
+ggplot(rain, aes(x= MinTemp, fill = RainTomorrow)) + geom_bar() + theme_bw()
+
+
+
+```
+
+
+```{r}
+
+
+ggplot(rain, aes(x= MaxTemp, fill = RainTomorrow)) + geom_bar() + theme_bw()
+
+```
+
+```{r}
+
+ggplot(rain, aes(x= Rainfall, fill = RainTomorrow)) + geom_bar() + 
+  theme_bw() + scale_x_continuous(limit = c(0, 25)) +
+   scale_y_continuous(limit = c(0, 1750))
+```
+
+```{r}
+
+
+ggplot(rain, aes(x= Cloud9am, fill = RainTomorrow)) + geom_bar() + 
+  theme_bw() + theme(axis.text.x = element_text(angle=60, hjust=1))
+
+
+
+```
+
+
+```{r}
+
+
+ggplot(rain, aes(x= Cloud3pm, fill = RainTomorrow)) + geom_bar() + 
+  theme_bw() + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+```
+
+
+```{r}
+
+
+
+ggplot(rain, aes(x= RainToday , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw() 
+
+
+
+```
+
+```{r}
+
+
+t_rain = table(rain$RainTomorrow, rain$RainToday) #create a table object
+prop.table(t_rain, margin = 2 ) #crosstab with proportions
+
+
+
+```
+
+
+```{r}
+
+
+ggplot(rain, aes(x= Temp9am , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw() 
+
+
+```
+
+
+
+```{r}
+
+
+ggplot(rain, aes(x= Temp3pm , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw() 
+
+
+
+
+```
+
+
+```{r}
+
+
+
+ggplot(rain, aes(x= WindGustDir , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+
+
+```
+
+
+
+```{r}
+
+
+ggplot(rain, aes(x= WindGustSpeed , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+```
+
+
+
+```{r}
+
+ggplot(rain, aes(x= WindDir9am , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+
+
+```
+
+```{r}
+
+
+ggplot(rain, aes(x= WindDir3pm, fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+```
+
+```{r}
+
+ggplot(rain, aes(x= WindSpeed9am , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+
+
+```
+
+
+```{r}
+
+
+ggplot(rain, aes(x= WindSpeed3pm , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+```
+
+
+```{r}
+
+ggplot(rain, aes(x= Humidity9am , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+
+
+```
+
+
+```{r}
+
+ggplot(rain, aes(x= Humidity3pm , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+
+```
+
+
+```{r}
+
+ggplot(rain, aes(x= Pressure9am , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+
+```
+
+
+```{r}
+
+
+ggplot(rain, aes(x= Pressure3pm , fill = RainTomorrow)) + geom_bar() + 
+  theme_bw()  + theme(axis.text.x = element_text(angle=60, hjust=1)) 
+
+
+```
+
+
+```{r}
+
+
+
+
+rain$Temperture_Change %>%  boxplot(main="Box Plot of Temperature Change", ylab="TempertureChange", col = "grey")
+
+
+
+```
+
+
+```{r}
+
+
+ggplot(rain, aes(x= MinTempF, fill = RainTomorrow)) + geom_bar() + theme_bw()
+
+
+
+```
+
+
+```{r}
+
+
+
+ggplot(rain, aes(x= MaxTempF, fill = RainTomorrow)) + geom_bar() + theme_bw()
+
+
+```
+
+
+
+```{r}
+
+
+ggplot(rain, aes(x= Temp9amF, fill = RainTomorrow)) + geom_bar() + theme_bw()
+
+
+```
+
+
+
+```{r}
+
+
+ggplot(rain, aes(x= Temp3pmF, fill = RainTomorrow)) + geom_bar() + theme_bw()
+
+
+
+```
+
+###Identify Missingness of data and appropriately deal with missingness:
+
+```{r}
+
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+
+
+```
+
+
+Removal of Cloud9am and Cloud3pm due to such a large degree of data missing around over 60% missing data points. 
+
+Column-wise deletion of the "Cloud9am" and "Cloud3pm" variable, not sure why this was not removed. Next, Letting use the "mice" package to do imputation instead.
+
+
+```{r}
+
+#rain = rain %>% select(-Cloud9am) 
+#vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+
+#rain = rain %>% select(-Cloud3pm) 
+#vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+
+rain_subset = rain %>% dplyr:: select(Date, MinTempF, MaxTempF, Rainfall_inches, RainTomorrow, RainToday, Temperture_ChangeF, Humidity9am, Humidity3pm)
+head(rain)
+
+imp_age = mice(rain_subset, m=1, method='pmm', printFlag=FALSE)
+summary(imp_age)
+
+
+```
+
+
+```{r}
+
+densityplot(imp_age, ~Temperture_ChangeF) #red imputed, blue original
+
+
+```
+
+```{r}
+
+densityplot(imp_age, ~MinTempF) #red imputed, blue original
+
+
+```
+
+
+```{r}
+
+densityplot(imp_age, ~MaxTempF) #red imputed, blue original
+
+
+```
+
+
+
+```{r}
+
+densityplot(imp_age, ~RainToday) #red imputed, blue original
+
+
+
+```
+
+
+```{r}
+
+densityplot(imp_age, ~Rainfall_inches) #red imputed, blue original
+
+
+```
+
+
+```{r}
+
+densityplot(imp_age, ~Humidity9am) #red imputed, blue original
+
+```
+
+
+```{r}
+
+densityplot(imp_age, ~Humidity3pm) #red imputed, blue original
+
+```
+
+
+
+```{r}
+
+
+```
+
+
+
+Merge the imputed values into our data frame 
+
+```{r}
+
+rain_complete = complete(imp_age) 
+summary(rain_complete)
+
+```
+
+
+
+```{r}
+
+
+
+set.seed(12345)
+train.rows = createDataPartition(y = rain$RainTomorrow, p=0.7, list = FALSE) #70% in training
+train = rain[train.rows,] 
+test = rain[-train.rows,]
+
+
+
+```
+
+

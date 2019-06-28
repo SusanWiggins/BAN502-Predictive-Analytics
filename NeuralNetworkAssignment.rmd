@@ -1,0 +1,298 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Neural Network Assignment
+
+##BAN502 Predictive Analytics
+
+###Susan Wiggins
+
+
+The following libraries are needed for this assignment:
+
+```{r}
+
+library(tidyverse)
+library(caret)
+library(nnet)
+
+```
+
+Reading the data set parole and recoding:
+
+```{r}
+
+library(readr)
+parole <- read_csv("parole.csv")
+View(parole)
+
+
+
+
+```
+
+```{r}
+
+parole = parole %>% mutate(male = as_factor(as.character(male)))%>% 
+mutate(male = fct_recode(male, "male" = "1", "female" = "0"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(race = as_factor(as.character(race)))%>% 
+mutate(race = fct_recode(race, "white" = "1", "otherwise" = "2"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(state = as_factor(as.character(state)))%>% 
+mutate(state = fct_recode(state, "Kentucky" = "2", "Louisiana" = "3", "Virginia" = "4", "other state" = "1"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(crime = as_factor(as.character(crime)))%>% 
+mutate(crime = fct_recode(crime, "larceny" = "2", "drug-related crime" = "3", "driving-related crime" = "4", "other crime" = "1"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(violator = as_factor(as.character(violator)))%>% 
+mutate(violator = fct_recode(violator, "Yes" = "1", "No" = "0"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(multiple.offenses = as_factor(as.character(multiple.offenses)))%>% 
+mutate(multiple.offenses = fct_recode(multiple.offenses, "Multiple Offenses" = "1", "Otherwise" = "0"))
+
+
+glimpse(parole)
+
+summary(parole)
+
+```
+
+
+###Task 1
+
+Split the data into training and testing sets. Your training set should have 70% of the data. Use a random number (set.seed) of 12345.
+
+```{r}
+
+ 
+
+set.seed(12345) 
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE) #70% in training
+train = parole[train.rows,] 
+test = parole[-train.rows,]
+
+
+
+
+```
+
+
+
+
+###Task 2
+
+
+Create a neural network to predict parole violation. Use a size of 12 (corresponding roughly to the number of variables, including dummy variables) and a decay rate of 0.1. Use caret to implement 10-fold k-fold cross-validation. Use a random number seed of 1234. To suppress all of the text describing model convergence, add the command: trace = FALSE after verbose = FALSE. 
+
+
+
+
+
+```{r}
+
+start_time = Sys.time() #for timing
+fitControl = trainControl(method = "cv", 
+                           number = 10)
+
+nnetGrid <-  expand.grid(size = 12, decay = 0.1)
+
+set.seed(1234)
+nnetBasic = train(violator ~ ., 
+                 parole,
+                 method = "nnet",
+                 tuneGrid = nnetGrid,
+                 trControl = fitControl,
+                 verbose = FALSE,
+                 trace = FALSE)
+
+end_time = Sys.time()
+end_time-start_time
+
+
+
+
+
+
+
+```
+
+
+
+```{r}
+
+nnetBasic
+
+```
+
+###Task 3
+
+
+Use your model from Task 2 to develop predictions on the training set. Use caret's confusionMatrix function to evaluate the model quality. Comment on the model quality. 
+
+The model has a 93.02% accuracy, whereas the naive model is 88.37% accurate in model accuracy. The p-value also indicates that the model is significant due to listed as 0.0005254  which is less than .05. Specificity is at 97.85% and sensitivity is 56.36%. The model is indicated as good for the quality of these values. 
+
+
+
+
+```{r}
+
+
+predNetBasic = predict(nnetBasic, train)
+
+confusionMatrix(predNetBasic, train$violator, positive = "Yes")
+
+
+```
+
+
+
+
+
+
+###Task 4
+
+Create a neural network to predict parole violation. Use a grid to search sizes 1 through 12 (by 1) and decay rates of 0.1 to 0.5 (by 0.1). Use caret to implement 10-fold k-fold cross-validation. Use a random number seed of 1234. To suppress all of the text describing model convergence, add the command: trace = FALSE after verbose = FALSE. Note: This model make take some time to run! Be patient, particularly if you are using an older computer. 
+
+
+```{r}
+
+start_time = Sys.time() #for timing
+fitControl = trainControl(method = "cv", 
+                           number = 10)
+
+nnetGrid =  expand.grid(size = seq(from = 1, to = 12, by = 1), #rule of thumb --> between # of input and # of output layers
+                        decay = seq(from = 0.1, to = 0.5, by = 0.1))
+set.seed(1234)
+nnetFit = train(violator ~ ., 
+                 parole,
+                 method = "nnet",
+                 trControl = fitControl,
+                 tuneGrid = nnetGrid,
+                 verbose = FALSE,
+                 trace = FALSE)
+
+end_time = Sys.time()
+end_time-start_time
+
+
+
+
+
+```
+
+```{r}
+
+nnetFit
+plot(nnetFit)
+```
+
+
+
+
+###Task 5
+
+
+Use your model from Task 4 to develop predictions on the training set. Use caret's confusionMatrix function to evaluate the model quality. Comment on the model quality.
+
+
+
+The accuracy of this model has decreased slightky to 90.49%. A difference of 3% from the previous model. The p-value change to a greater degree above .05 listed as 0.08373. The naive model stayed the same in performance. The sensitivity decreased also in this model to 30.91% and specificity remained around the same in value. 
+
+
+
+```{r}
+
+predNet = predict(nnetFit, train)
+
+
+confusionMatrix(predNet, train$violator, positive = "Yes")
+
+
+```
+
+
+
+###Task 6
+
+
+Use your model from Task 2 to develop predictions on the testing set. Use the confusionMatrix command to assess and comment on the quality of the model. 
+
+The model for the testing set for task 2 is 91.58% accurate indicating a increase in from the naive model of 88.61%. Therefore, the model is slightly better. The model is not less than .05 for p-value. The sensitivity is only at 30.44% and the specificity is at 99.44%.
+
+
+
+
+
+```{r}
+
+predNetBasic = predict(nnetBasic, test)
+
+confusionMatrix(predNetBasic, test$violator, positive = "Yes")
+
+
+
+
+
+```
+
+
+
+
+
+
+###Task 7
+
+Use your model from Task 4 to develop predictions on the testing set. Use the confusionMatrix command to assess and comment on the quality of the model. 
+
+
+The model for the testing set for task 4 is 88.61% accurate and the naive model is around the same 88.61%. Therefore, the model is the same. The model is not less than .05 for p-value. The sensitivity is only at 13.04% and the specificity is at 98.32%.
+
+
+
+
+
+
+```{r}
+
+
+predNet = predict(nnetFit, test)
+
+
+confusionMatrix(predNet, test$violator, positive = "Yes")
+
+
+
+
+```
+
+
+
+
+
+###Task 8
+
+
+Comment on whether there appears to be overfitting in one or both of your models from Tasks 2 and 4.
+
+Task 2
+
+The accuracy for the training set is 93.02% and the accuracy for the testing set is 91.58% only a difference between values of 1.44%. There seems to be about the same accuracy in training and testing set meaning that there is not overfitting in the model. 
+
+
+Task 4
+
+The accuracy for the training set is 90.49% and the accuracy for the testing set is 88.61% only a difference between values of 1.88%. There seems to be about the same accuracy in training and testing set meaning that there is not overfitting in the model. 
+

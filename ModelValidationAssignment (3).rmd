@@ -1,0 +1,201 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Model Validation Assignment
+
+## BAN502 Predictive Analytics
+
+###Susan Wiggins
+
+The libraries needed:
+
+```{r}
+
+library(tidyverse)
+library(MASS)
+library(caret)
+library(GGally)
+
+
+```
+
+Import of dataset:
+
+```{r}
+library(readr)
+hour <- read_csv("hour.csv")
+View(hour)
+
+
+
+```
+
+Formation of tibble data frame bike:
+
+```{r}
+
+
+bike = as_tibble(hour)
+
+
+```
+
+
+Using the same code in  past assignment:
+
+```{r}
+
+
+bike = bike %>% mutate(season = as_factor(as.character(season))) %>% mutate(season = fct_recode(season, "Spring" = "1", "Summer" = "2", "Fall" = "3", "Winter" = "4"))
+
+bike = bike %>% mutate(yr = as_factor(as.character(yr)))
+bike = bike %>% mutate(mnth = as_factor(as.character(mnth)))
+bike = bike %>% mutate(hr = as_factor(as.character(hr)))
+
+bike = bike %>% mutate(holiday = as_factor(as.character(holiday))) %>% mutate(holiday = fct_recode(holiday, "NotHoliday" = "0", "Holiday" = "1"))
+
+bike = bike %>% mutate(workingday = as_factor(as.character(workingday))) %>% mutate(workingday = fct_recode(workingday, "NotWorkingDay" = "0", "WorkingDay" = "1"))
+
+bike = bike %>% mutate(weathersit = as_factor(as.character(weathersit))) %>% mutate(weathersit = fct_recode(weathersit, "NoPrecip" = "1", "Misty" = "2", "LightPrecip" = "3", "HeavyPrecip" = "4"))
+
+
+bike = bike %>% mutate(weekday = as_factor(as.character(weekday))) %>% mutate(weekday = fct_recode(weekday, "Sunday" = "0", "Monday" = "1", "Tuesday" = "2", "Wednesday" = "3", "Thursday" = "4", "Friday" = "5", "Saturday" = "6"))
+
+
+
+glimpse(bike)
+
+
+
+```
+###Task 1
+
+Split the data into training and testing sets.
+
+```{r}
+
+
+
+
+set.seed(1234)
+train.rows = createDataPartition(y = bike$count, p=0.7, list = FALSE) #70% in training
+train = bike[train.rows,] 
+test = bike[-train.rows,]
+
+
+
+```
+
+###Task 2
+
+How many rows of data are in each set ( training and testing)?
+
+The training set has 12167 rows and 17 variables(columns) of data.
+The testing set has 5212 rows abd 17 variables(columns) of data. 
+
+###Task 3
+
+
+```{r}
+
+bike2 = bike %>% dplyr::select("season", "mnth", "hr", "holiday", "weekday", "temp","weathersit", "count")
+
+set.seed(1234)
+train.rows = createDataPartition(y = bike2$count, p=0.7, list = FALSE) #70% in training
+train2 = bike2[train.rows,] 
+test2 = bike2[-train.rows,]
+
+summary(bike2)
+glimpse(bike2)
+
+
+ggplot(bike2, aes(x=count)) + geom_histogram() + theme_bw()
+
+```
+
+AFTER you split, then do visualization and modeling with the **training set**.  
+
+Our Y (response) variable in this dataset is "Count".  
+```{r}
+
+model1 = lm(count ~.,train2)
+summary(model1)
+
+model2 = lm(count~., test2)
+summary(model2)
+```
+
+###Task 3
+
+Commit on the quality of the model. Be sure to note the Adjusted R-Squared value. 
+
+The linear regression model on the training data implies that the variables for month and weekday do not have significance when looking at the p-value due to being greater than .05, Sunday is the only value in weekday that shows a significance for bike rentals. As for the  other variables tested in the training method the weathersit, temp, hr, and season all show significance due to having p-value less than .05. The Adjusted R-squared value is good at .6214 indicating that our model is sufficient. 
+
+
+###Task 4
+Use the predict functions to make predictions:
+```{r}
+
+predict_train = predict(model1, newdata = train2, interval = "predict")
+head(predict_train, n=6)
+
+```
+
+Comment on the predictions:
+
+The training data tends to show lower values in prediction, with negative tendencies. The lowest value for prediction is -57.81925 and the highest value listed is 13.80902. The lower and upper prediction is a fairly large range in data points between the two at around the -270's to +160's.The negative data related to the fit of the variable means that there is a less likely chance that the variable is significant towards count.
+
+###Task 5
+
+
+```{r}
+
+
+predict_test = predict(model2, newdata = test2, interval = "predict")
+head(predict_test, n=6)
+
+```
+
+
+Comment on the predictions:
+
+The testing data tends to show one lower values in prediction, and the other values are much greater in value than the training prediction. The lowest value for prediction is -13.13044and the highest value listed is 202.07321. The lower and upper prediction is a fairly large range in data points between the two at around the -6's to +430's. This is even a larger dispersion of data points between upper and lower predictions.The negative data related to the fit of the variable means that there is a less likely chance that the variable is significant towards count.
+
+
+
+
+
+###Task 6
+
+Manually calculate the R-squared value ont the testing set. Comment on how this value compare to the model's performance on the training set.
+
+The manually R-squared value is 0.6312857, which shows there is not much difference when comparing to the model value of  0.6229. The difference of performance between these two values is .0083857.
+
+```{r}
+
+SSE = sum((test2$count - predict_test)^2) #sum of squared residuals from model
+SST = sum((test2$count - mean(test2$count))^2) #sum of squared residuals from a "naive" model
+1 - SSE/SST #definition of R squared
+
+
+
+
+```
+
+###Task 7
+
+Describe how k-fold cross-validation differs from model validation via a training/testing split. 
+
+k-fold is a more powerful application than model validation via a training/testing split. The seed creates random numbers enabling a replication of work. k-fold allows you to do training/testing over and over again model performance might differ accross different paritions. 
+
+
+```{r}
+
+
+
+```
+
+
+

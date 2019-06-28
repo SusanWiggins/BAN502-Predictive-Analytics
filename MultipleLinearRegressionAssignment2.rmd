@@ -1,0 +1,217 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Multiple Linear Regression and Special Issues Assignment
+
+##BA 502 Predictive Analytics
+
+###Susan Wiggins
+
+Read the follwing libraries for assignment: tidyverse, GGally, MASS, leaps.
+First installed the leaps package.
+
+```{r}
+
+
+```
+
+```{r}
+
+library(tidyverse)
+library(GGally)
+library(MASS)
+library(leaps)
+library(magrittr)
+
+```
+
+```{r}
+
+library(readr)
+hour <- read_csv("hour.csv")
+View(hour)
+
+
+
+```
+Load tibble package also in console.
+
+Formation of tibble data frame.
+
+```{r}
+
+bike = as_tibble(hour)
+
+```
+
+
+```{r}
+
+bike = bike %>% mutate(season = as_factor(as.character(season))) %>% mutate(season = fct_recode(season, "Spring" = "1", "Summer" = "2", "Fall" = "3", "Winter" = "4"))
+
+bike = bike %>% mutate(yr = as_factor(as.character(yr)))
+bike = bike %>% mutate(mnth = as_factor(as.character(mnth)))
+bike = bike %>% mutate(hr = as_factor(as.character(hr)))
+
+bike = bike %>% mutate(holiday = as_factor(as.character(holiday))) %>% mutate(holiday = fct_recode(holiday, "NotHoliday" = "0", "Holiday" = "1"))
+
+bike = bike %>% mutate(workingday = as_factor(as.character(workingday))) %>% mutate(workingday = fct_recode(workingday, "NotWorkingDay" = "0", "WorkingDay" = "1"))
+
+bike = bike %>% mutate(weathersit = as_factor(as.character(weathersit))) %>% mutate(weathersit = fct_recode(weathersit, "NoPrecip" = "1", "Misty" = "2", "LightPrecip" = "3", "HeavyPrecip" = "4"))
+
+
+bike = bike %>% mutate(weekday = as_factor(as.character(weekday))) %>% mutate(weekday = fct_recode(weekday, "Sunday" = "0", "Monday" = "1", "Tuesday" = "2", "Wednesday" = "3", "Thursday" = "4", "Friday" = "5", "Saturday" = "6"))
+
+
+
+glimpse(bike)
+
+
+
+
+```
+
+Why do we convert "yr", "mnth", and "hr" into factors? Why not just leave them as numbers.
+
+
+The converison of yr, hr, and mnth to factors is performed so that each level of those variables can have their own effects in the model. An assumption that the analysis would be linear is the reason that the conversion are performed.
+
+
+
+```{r}
+
+ggcorr(bike, label = TRUE)
+
+
+```
+
+```
+
+Which of the quantitative variables appears to be best correlated with count?
+
+The atemp seems to be best correlated with count at a .4 correlation score. The casual variable is ignored du to the sum of casual and registered equals count.
+
+
+```{r}
+
+
+ggplot(bike,aes(x=hr,y=count)) + geom_boxplot()
+
+ggplot(bike,aes(x=mnth,y=count)) + geom_boxplot()
+
+ggplot(bike,aes(x=yr,y=count)) + geom_boxplot()
+
+ggplot(bike,aes(x=season,y=count)) + geom_boxplot()
+
+ggplot(bike,aes(x=holiday,y=count)) + geom_boxplot()
+
+ggplot(bike,aes(x=workingday,y=count)) + geom_boxplot()
+
+ggplot(bike,aes(x=weathersit,y=count)) + geom_boxplot()
+
+ggplot(bike,aes(x=weekday,y=count)) + geom_boxplot()
+
+
+
+
+
+
+```
+
+Which variables appear to affect count? 
+
+(Hr) is this first graph for boxplot formulated in the analysis and just the visualization alone tells us there is an affect on count. There is a difference in the data distributed throughout the upper quartile and the lower quartile, each one of the box plots seems to be of varying degrees in size. The median also is at a range listed amoung different points in the relation to count. 
+
+(mnth) is the second graph for boxplot and shows some relevance in the affect on count for the median value changes in the month by increasing per month and also the dispersion of the data is smaller to larger in the upper quartile to lower quartile and decreases towards the last month. 
+
+(yr) is the next graph for analysis in the boxplot and there is a possiblity that yr could affect count; however, the visualization is not as clear as the hr variable. The (yr) for the first year of 0 has a count from 50 to around 200 from upper to lower quartile and the data is larger in dispersion from 50 to 340 with an increase in median quartile value. Could have a slight significane on count.
+
+(season) the next graph for analysis does suggest an affect on count. The median quartile changes throughout the spring to winter, and the upper and lower quartile slightly change with significantly more data throughout the plot. 
+
+(holiday) the next categorical variable to look at in the analysis indicates no significance towards count, there is not much change in the box plot values. The median decreases a little in Holiday but that is not enough visually to say that holiday is a significant affect on count. 
+ 
+(workingday) the following categorical variable to study in the analysis indicates no significance towards count. No change is displayed in the data points for lower to upper quartile nor does the median change in the range upon count. Theerefore, I do not feel it shows an indication of showing relevance to the count variable. 
+
+(weathersit) the next graph for analysis in boxplot and does show relevance in the affect on count. The graph show significant decrease in median value from NoPrecip to HeavyPrecip. In addition, the upper and lower quartile changes along side of the range in weathersit. Therefore, the weathersit variable does show significance to count. 
+
+(weekday) th final categorical variable in boxplot analyis indicates no significance to count, there is very little difference in the data in weekday range. No change in the upper and lower quartile and the median seems to stay the same also. 
+
+
+```{r}
+
+bike2 = bike %>% dplyr::select(-c(instant, dteday, registered, casual)) 
+summary(bike2)
+glimpse(bike2)
+
+```
+
+
+```{r}
+
+
+
+allmod = lm(count ~., bike2) #use the ~. to include all predictors rather than typing them all in
+summary(allmod)
+
+emptymod = lm(count ~1, bike2) #use ~1 to build an empty model
+summary(emptymod)
+
+
+```
+
+Forward Stepwise Regression:
+
+```{r}
+
+#forward
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod),
+                      trace = TRUE) #trace = TRUE shows how the model is built (which variables                                       are added)
+summary(forwardmod) #note multicollinearity with FullBath with a negative coefficient
+
+
+
+```
+The variables that have the least significance look to be month and weekday due to the p-value being greater than .05. The reminder of the variables indicated have less than .05 for p-value. The R-squared is .6864 which is close value to one indicating the model is good. The quality of the model overall I am not sure so much about due to not seeing a reading in the past of categorical data. I did not expect for each categorical variable to be broken down in the analysis. 
+
+
+Backward Stepwise Regression:
+
+```{r}
+
+#backward
+backmod = stepAIC(allmod, direction = "backward", trace = TRUE) #trace = TRUE shows how the model is built (which variables are removed)
+summary(backmod)
+
+
+```
+
+Does this model differ from the forward model? If So, how? Backward Stepwise shows how the variables are removed from the model, while Forward Stepwise shows how the variables are added. 
+
+Describe how (workingday) is represented in the model via other variables? workingday seems to be removed from the model and the configuration of AIC only includes one level of the model. 
+
+
+```{r}
+
+bike2 = bike2 %>% mutate(yr = as.integer(yr)-1) 
+
+allmod = lm(count ~., bike2) #use the ~. to include all predictors rather than typing them all in
+summary(allmod)
+
+emptymod = lm(count ~1, bike2) #use ~1 to build an empty model
+summary(emptymod)
+
+#forward
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod),
+                      trace = TRUE) #trace = TRUE shows how the model is built (which variables                                       are added)
+summary(forwardmod) #note multicollinearity with FullBath with a negative coefficient
+
+
+```
+
+Did the model Change? The R-squared value did not change. However, the ordering of the degree of variables changed greatly. Also, indicates that one variable is not defined due to signularities. 
+
+
+
+

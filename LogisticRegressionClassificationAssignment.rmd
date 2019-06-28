@@ -1,0 +1,601 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Logistic Regression Assignment
+
+##BAN502 Predictive Analytics
+
+###Susan Wiggins
+
+Libraries for this Project:
+
+```{r}
+
+library(tidyverse)
+library(MASS)
+library(leaps)
+library(caret)
+library(e1071) #often needed for various statistical tasks
+library(ROCR) #for threshold selction
+
+```
+
+
+```{r}
+
+library(readr)
+parole <- read_csv("parole.csv")
+View(parole)
+
+```
+
+
+Code to convert Parole data:
+
+```{r}
+
+
+parole = parole %>% mutate(male = as_factor(as.character(male)))%>% 
+mutate(male = fct_recode(male, "male" = "1", "female" = "0"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(race = as_factor(as.character(race)))%>% 
+mutate(race = fct_recode(race, "white" = "1", "otherwise" = "2"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(state = as_factor(as.character(state)))%>% 
+mutate(state = fct_recode(state, "Kentucky" = "2", "Louisiana" = "3", "Virginia" = "4", "other state" = "1"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(crime = as_factor(as.character(crime)))%>% 
+mutate(crime = fct_recode(crime, "larceny" = "2", "drug-related crime" = "3", "driving-related crime" = "4", "other crime" = "1"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(violator = as_factor(as.character(violator)))%>% 
+mutate(violator = fct_recode(violator, "violated parole" = "1", "No violation parole" = "0"))
+
+glimpse(parole)
+
+parole = parole %>% mutate(multiple.offenses = as_factor(as.character(multiple.offenses)))%>% 
+mutate(multiple.offenses = fct_recode(multiple.offenses, "Multiple Offenses" = "1", "Otherwise" = "0"))
+
+
+glimpse(parole)
+
+
+
+
+```
+
+
+###Task 1
+
+Split the data into training and testing sets. 
+
+```{r}
+
+
+set.seed(12345)
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE) #70% in training
+train = parole[train.rows,] 
+test = parole[-train.rows,]
+
+
+y <- train[,9]
+y_test <- test[,9]
+
+
+```
+
+###Task 2
+
+In this task, use appropriate data visualizations and/or tables to identify which variables in the training set appear to be most predictive of the response variable "violator". Provide a brief explanation of your thought process.
+
+Variable Gender:
+
+```{r}
+
+ggplot(parole, aes(x=male, fill = violator)) + geom_bar() + theme_bw()
+
+```
+Tabular data for Gender:
+
+```{r}
+
+
+t1 = table(parole$violator, parole$male) #create a table object
+prop.table(t1, margin = 2 ) #crosstab with proportions
+
+
+```
+
+variable race:
+
+```{r}
+
+
+ggplot(parole, aes(x=race, fill = violator)) + geom_bar() + theme_bw()
+
+```
+
+
+Tabular data for race:
+
+```{r}
+
+
+t2 = table(parole$violator, parole$race) #create a table object
+prop.table(t2, margin = 2 ) #crosstab with proportions
+
+
+
+```
+
+
+variable state:
+
+```{r}
+
+
+ggplot(parole, aes(x=state, fill = violator)) + geom_bar() + theme_bw()
+
+
+
+
+
+```
+
+Tabular data for state:
+
+
+```{r}
+
+t3 = table(parole$violator, parole$state) #create a table object
+prop.table(t3, margin = 2 ) #crosstab with proportions
+
+
+
+
+```
+
+
+
+variable crime:
+
+```{r}
+
+ggplot(parole, aes(x=crime, fill = violator)) + geom_bar() + theme_bw()
+
+
+
+```
+
+
+Tabular data for crime:
+
+```{r}
+
+t4 = table(parole$violator, parole$crime) #create a table object
+prop.table(t4, margin = 2 ) #crosstab with proportions
+
+
+
+```
+
+variable multiple Offenses:
+
+```{r}
+
+
+
+ggplot(parole, aes(x=multiple.offenses, fill = violator)) + geom_bar() + theme_bw()
+
+
+```
+
+
+Tabular data for multiple Offenses:
+
+
+```{r}
+
+t5 = table(parole$violator, parole$multiple.offenses) #create a table object
+prop.table(t5, margin = 2 ) #crosstab with proportions
+
+
+
+```
+
+
+###Task 2 (Continued)
+
+Provide a brief explanation of your thought process. 
+
+Gender tends to have a significance by visualization aspects and also looking towards the tabular data generated in the analysis. There are more males who violate their parole than females; however, the tabular data show only a difference of .0097389. 
+
+Race tends to have a slightly higher level in parole violators for the other categorical listed as "otherwise". An increase in 4.824 % for violators for otherwise. Visually the data dosn't indicate significance in value. 
+
+
+State looks that it does indicate that it has significance on the violation of parole, the people in Louisiana tend to violate parole more than the other states at 45.12 % and other states is next at percentage rate of 13.98 %. Virginia has the least people who violate their parole.
+
+
+Crime looks as though the people with driving related crimes are less likely to violate their parole than the other offenses. Drug-related crime is the most likely to violate their parole. 
+
+
+Mutiple Offenses tends to have a greater significane also with people skipping out on their parole due to having many offenses. Mutiple offenses skip out on parole at 14% and otherwise less offenses is around 7.9 %. 
+
+###Task 3
+
+
+Identify the variable from Task 2 that appears to you to be most predictive of "violator". 
+
+When looking at the comparison of the most predictive of violator, I thought that the variable mutiple offenses was the mos significant of variables towards violation of parole followed by what state the criminal offender was in next. 
+
+```{r}
+
+model1 = glm(violator ~  multiple.offenses, parole, family = "binomial")
+summary(model1)
+
+
+
+```
+###Task 3 (Continued)
+
+Comment on the quality of the model.
+
+Multiple Offenses does show significant value the p value is less than .05 at a value of .00783.The AIC also is significantly low at 479.81. We must look for changes in a decrease in AIC for an indication of the degree of how good the model is in this instance. The negative value also lets us know that less likely for the person to be a parole violator of -2.44. 
+
+
+```{r}
+
+
+model2 = glm(violator ~  multiple.offenses + state, parole, family = "binomial")
+summary(model2)
+
+
+
+```
+
+
+###Task 4
+
+Using forward stepwise, backward stepwise, or by manually building a model, create the best model you can to predict "violator". 
+
+
+
+```{r}
+
+
+allmod = glm(violator ~ male + race + state + crime + multiple.offenses, parole, family = "binomial") 
+summary(allmod)  
+  
+emptymod = glm(violator ~1, parole, family = "binomial") #use ~1 to build an empty model  
+summary(emptymod)
+
+
+
+```
+
+
+Backward Stepwise:
+
+```{r}
+
+#backward
+backmod = stepAIC(allmod, direction = "backward", trace = TRUE) 
+summary(backmod)
+
+
+```
+
+Forward Stepwise:
+
+```{r}
+
+#forward
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod),
+                      trace = TRUE) 
+summary(forwardmod) 
+
+
+```
+
+
+
+
+The models for forward and backward stepwise regression are the same. The AIC value is listed at the same value. The forward and backward stepwise regression models displayed a better AIC value than the previous model that I built manually with the variables of mutiple.offenses and state towards response variable of violator. The forward regression shows that state Kentucky is not significant and state Louisiana, whereas, state Virginia, mutiple offenses, and race otherwise were significant due to p-value. The backward regression shows the same significance in these variables due to p-value. 
+
+###Task 5
+
+Create a logistic regression model using the training set to predict "violator" using the variables: state, multiple offenses, and race. 
+
+
+```{r}
+
+
+model3 = glm(violator ~  multiple.offenses + state + race, parole, family = "binomial")
+summary(model3)
+
+
+
+
+```
+###Task 5 (Continued)
+
+The variables that are less likely to commit violation of parole would be mutiple offenses otherwise which indicates a negative value as well as the state of Virginia. The significant variables shown by there p-value are mutiple offenses otherwise and multiple offenses, state of Virginis and race otherwise in this model. The AIC value for this model is the same in value as the other models performed earlier for forward, backward, and the previous model os model1 and model2. 
+
+
+###Task 6
+
+Parolee 1: Parolee 1 has a 44.18 % likely to violate parole.
+
+
+```{r}
+
+newdata = data.frame(multiple.offenses = "Multiple Offenses", state = "Louisiana", race = "white")
+predict(forwardmod, newdata, type="response")
+
+
+```
+
+Parolee 2: Parolee 2 has a 15.28 % likely to violate parole. Therefore, Parolee 1 would be the most likely to violate parole with mutiple offenses, white, and coming from state of Louisiana. 
+
+```{r}
+
+
+newdata = data.frame(multiple.offenses = "Otherwise", state = "Kentucky", race = "otherwise")
+predict(forwardmod, newdata, type="response")
+
+
+
+```
+
+
+###Task 7
+
+Develop an ROC curve and determine the probability threshold that best balances specifiicity and sensitivity (on the training set).
+
+
+```{r}
+
+predictions = predict(model3,newdata = train, type="response") #develop predicted probabilities
+head(predictions)
+
+
+
+```
+
+
+
+```{r}
+
+
+ROCRpred = prediction(predictions,train$violator) 
+
+ROCRperf = performance(ROCRpred, "tpr", "fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+
+
+```
+
+###Task 8
+
+What is the accuracy, sensitivity, and speci???city of the model on the training set given the cuto??? from Task 7? 
+
+The cut off value is at 0.1470858, the sensitivity of the model is 0.8000000, and the specificity is at 0.8133971 on the training data set. The Accuracy of the model is listed futher down and is 0.8287526.
+
+
+```{r}
+
+#Determine threshold to balance sensitivity and specificity
+#DO NOT modify this code
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+}
+print(opt.cut(ROCRperf, ROCRpred))
+
+
+
+```
+Area under the curve (AUC). AUC is a measure of the strength of the model. Values closer to 1 are better. Can be used to compare models.
+```{r}
+
+as.numeric(performance(ROCRpred, "auc")@y.values)
+
+```
+
+The value of the model looks good due to the AUC value listed at 0.8540887, whhich is close to one. 
+
+
+
+
+###Task 9
+
+Identify a probability threshold (via trial-and-error) that best maximizes accuracy on the training set. 
+
+test threshold:
+```{r}
+#confusion matrix
+t6 = table(train$violator,predictions >  0.1470858)
+t6
+
+
+
+```
+
+
+Correct classification are that there are 350 at no violation parole false and 42 people who violated their parole and classified as true. Incorrect classification was No violation parole at true 68 and violated parole at 13 false. 
+
+
+Caculate Accuracy: 
+
+```{r}
+
+(t6[1,1]+t6[2,2])/nrow(train)
+
+
+
+```
+Can apply trial and error to maximize accuracy (here trying 0.5 as threshold)
+
+```{r}
+
+t6 = table(train$violator,predictions > 0.5)
+t6
+(t6[1,1]+t6[2,2])/nrow(train)
+
+
+```
+
+
+Accuracy increases from 0.8287526 to 0.8964059 using .5.
+
+
+```{r}
+
+
+t6 = table(train$violator,predictions > 0.6)
+t6
+(t6[1,1]+t6[2,2])/nrow(train)
+
+
+
+```
+
+
+Accuracy remains the same when increasing to .6.
+
+A naive prediction (everyone not skip parole)
+
+```{r}
+
+
+t6 = table(train$violator,predictions > 1) #set threshold to 1 so all are classifed as not not skip parole
+t6
+(t6[1])/nrow(train)
+
+```
+The margin is not that great in a naive model towards other comparisons in trial and error. I would recommend the .5 for the threshold in the trial and error the accuracy increases at this particular threshold and doesn't change from that point. 
+
+###Task 10
+
+Use your probability threshold from Task 9 to determine accuracy of the model on the testing set.
+
+
+
+
+test threshold:
+```{r}
+
+predictions_test = predict(model3,newdata = test, type="response") #develop predicted probabilities
+head(predictions_test)
+
+
+
+
+
+```
+
+```{r}
+
+
+ROCRpred_test = prediction(predictions_test,test$violator) 
+
+ROCRperf_test = performance(ROCRpred_test, "tpr", "fpr")
+plot(ROCRperf_test, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+
+
+```
+
+```{r}
+
+#Determine threshold to balance sensitivity and specificity
+#DO NOT modify this code
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+}
+print(opt.cut(ROCRperf_test, ROCRpred_test))
+
+
+
+
+```
+
+
+```{r}
+
+
+
+as.numeric(performance(ROCRpred_test, "auc")@y.values)
+
+
+
+
+```
+
+```{r}
+
+
+#confusion matrix
+t7 = table(train$violator,predictions >  0.07877567)
+t7
+
+
+```
+Calculate Accuracy:
+
+```{r}
+
+
+
+(t7[1,1]+t7[2,2])/nrow(test)
+
+```
+
+```{r}
+
+t7 = table(test$violator,predictions_test > 0.5)
+t7
+(t7[1,1]+t7[2,2])/nrow(test)
+
+
+
+```
+
+```{r}
+
+
+t7 = table(test$violator,predictions_test > 0.6)
+t7
+(t7[1,1]+t7[2,2])/nrow(test)
+
+
+```
+
+
+```{r}
+
+t7 = table(test$violator,predictions_test > 1) #set threshold to 1 so all are classifed as no skipping parole
+(t7[1])/nrow(test)
+
+
+```
+
+The test data set moves to decreasing in value  for skipping out on parole when
+setting threshold to one. 

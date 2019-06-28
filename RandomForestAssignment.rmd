@@ -1,0 +1,229 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Random Forests Assignment
+
+##BAN502 Predictive Analytics
+
+###Susan Wiggins
+
+Libraries needed for assignment:
+
+
+```{r}
+
+library(tidyverse)
+library(caret)
+library(ranger)
+
+
+
+```
+
+Reading in the data set:
+
+
+
+```{r}
+
+library(readr)
+Blood <- read_csv("Blood.csv")
+View(Blood)
+
+
+Blood = Blood %>% mutate(DonatedMarch = as_factor(as.character(DonatedMarch)))%>% 
+mutate(DonatedMarch = fct_recode(DonatedMarch, "No" = "0", "Yes" = "1"))
+
+glimpse(Blood)
+
+
+
+```
+
+```{r}
+
+str(Blood)
+summary(Blood)
+
+
+
+```
+
+
+
+
+###Task 1
+
+Split the dataset into training (70%) and testing (30%) sets. Use set.seed of 1234.
+
+
+```{r}
+
+
+set.seed(1234) 
+train.rows = createDataPartition(y = Blood$DonatedMarch, p=0.7, list = FALSE) #70% in training
+train = Blood[train.rows,] 
+test = Blood[-train.rows,]
+
+
+
+
+```
+
+###Task 2
+
+
+Create a random forest model on the training set to predict DonatedMarch using all of the variables in the dataset. Use caret's trainControl function to set up 10 fold cross-validation. Use a random number seed of 123. Use 100 trees (Note you can specify the number of trees by adding a line num.trees = 100 to the rf_fit block of code). 
+
+```{r}
+
+
+Blood = Blood %>% select(c("Mnths_Since_Last","TotalDonations", "Total_Donated","Mnths_Since_First", "DonatedMarch"))
+
+
+
+#blood = complete(Blood) 
+#summary(blood)
+
+```
+
+
+
+
+```{r}
+
+fit_control = trainControl(method = "cv",  
+                           number = 10) #set up 10 fold cross-validation
+
+#rf_fit = train(DonatedMarch ~.,
+
+
+set.seed(123)  
+rf_fit = train(x=as.matrix(train[,-5]), y=as.matrix(train$DonatedMarch),
+                 method = "ranger", 
+                 importance = "permutation",
+                 trControl = fit_control,
+                num.trees = 100)
+
+
+
+
+
+```
+
+
+
+###Task 3
+
+Using varImp, what is the most important variable in the model, what is the least important?
+
+Most Important variable is Total_Donated.
+
+Least Important variable is Mnths_Since_Last.
+
+
+Check out random forest details 
+```{r}
+
+varImp(rf_fit)
+rf_fit
+
+
+
+
+
+```
+
+
+
+
+###Task 4
+
+Use the model to develop predictions on the training set. Use the "head" function to display the first six predictions. 
+
+```{r}
+
+predRF = predict(rf_fit)
+head(predRF)
+
+```
+
+
+
+
+###Task 5
+
+Use the model to create a confusion matrix using caret's confusionMatrix function for the training set. What is the accuracy, sensitivity, and specificity of the model?
+
+The accuracy of the model is 0.9065, 90.65% accurate.
+
+The sensitivity of the model is 0.6480, 64.80% sensitivity   
+
+The specificity of the model is 0.9875, 98.75% specificity.
+
+
+
+
+```{r}
+
+
+
+confusionMatrix(predRF, train$DonatedMarch, positive = "Yes")
+
+
+
+```
+
+
+
+
+
+###Task 6
+
+How does the accuracy of the model compare to a naive model that assumes that all observations are in the majority class? 
+
+The Random forest model shows an accuracy of 90.65% whereas the naive model that assumes that all observations are in the majority class is 76.15%. The difference of these two values is 14.50%. Therefore, a significance level in change for the random forest does exists. The p-value also is less than .05 indicating that the model is good.
+
+
+
+###Task 7
+
+Use the model to develop predictions on the test set. Develop a confusion matrix. How does the model perform on the testing set?
+
+
+On the testing set the decreases on accuracy to 77.68%, and the naive model readings are about the same. Sensitivity also decrease some to 
+0.28302, 28.30%. The specificity is about a 6% decrease for the testing set also. The p-value is farther away from .05 in the training model than the testing model also. The p-value is greater than .05 in the testing model and is listed as 0.351547.
+
+
+```{r}
+
+predRF_test = predict(rf_fit, newdata = test)
+head(predRF_test)
+
+
+
+
+```
+```{r}
+
+confusionMatrix(predRF_test, test$DonatedMarch, positive = "Yes")
+
+
+```
+
+
+
+###Task 8
+
+
+Comment on how this model might be used in the "real-world." Would you recommend this model for real-world use? What if any concerns would you have about using the model?
+
+Caret is trying to build the best model possible for performance on data the model has never seen, so we are trying to build the most robust model on the testing set even though the training to testing set decreased in the accuracy this is probably the best model to be used. I would be concerned about the value of the p-value has decreased significantly from training to testing the training model is less than .05 whereas the testing is greater than .05.
+I might also be concerned with the factor that there is around a 10% decrease in training to testing accuracy. The sensitvity also has a large decrease in difference from training to testing so ;therefore, I believe there are some concerns for using this in a real world situation.
+
+
+
+
+
